@@ -1,7 +1,7 @@
 <?php
 session_start();
 include 'connect.php';
-
+include 'navbar.php';
 
 if (isset($_SESSION['imported']) && $_SESSION['imported'] === true) {
     unset($_SESSION['imported']);
@@ -13,13 +13,17 @@ $result = $conn->query($sql);
 
 // Handle delete request
 if (isset($_GET['delete_id'])) {
-    $id = intval($_GET['delete_id']);
+    $id = intval($_GET['delete_id']); // Convert to integer for security
+
     $stmt = $conn->prepare("DELETE FROM senior_citizens WHERE id = ?");
     $stmt->bind_param("i", $id);
 
-    $status = $stmt->execute() ? 'success' : 'error';
-    header("Location: table.php?delete_status=$status");
-    exit;
+    if ($stmt->execute()) {
+        echo "<script>alert('Record deleted successfully!'); window.location.href='table.php';</script>";
+        exit();
+    } else {
+        echo "<script>alert('Error deleting record!');</script>";
+    }
 }
 
 $remarks = isset($_GET['remarks']) ? strtoupper(trim($_GET['remarks'])) : '';
@@ -61,17 +65,9 @@ $socialResult = $conn->query($socialQuery);
 $areaQuery = "SELECT DISTINCT area FROM area ORDER BY area ASC";
 $areaResult = $conn->query($areaQuery);
 
-$pensionQuery = "SELECT DISTINCT pension FROM pension ORDER BY pension ASC";
-$pensionResult = $conn->query($pensionQuery);
 
-if (!empty($_GET['pension_type'])) {
-    $pt = $conn->real_escape_string($_GET['pension_type']);
-    $where[] = "pension = '$pt'";
-  }
-  
 
-include 'navbar.php';
- 
+
 ?>
 
 
@@ -87,9 +83,9 @@ include 'navbar.php';
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Bootstrap 5 JS (with Popper) -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>
 
 
 </head>
@@ -106,13 +102,12 @@ include 'navbar.php';
     /* Header Styles */
     .table thead th {
         white-space: nowrap;
-        background-color: rgb(120, 123, 174); /* Your preferred color */
+        background-color: rgb(21, 31, 168); /* Your preferred color */
         color: white;
         padding: 20px;
         font-family: 'Montserrat', sans-serif;
         font-weight: bold;
         text-align: center;
-        
         
     }
 
@@ -126,7 +121,6 @@ include 'navbar.php';
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis; /* Shows '...' if text is too long */
-        
        
     }
 
@@ -465,15 +459,6 @@ include 'navbar.php';
                             <?php } ?>
                         </select>
 
-
-                        <label class="form-label">Area of Difficulties</label>
-                        <select id="areaFilter" class="form-control mb-2">
-                            <option value="">Select Area of Difficulties</option>
-                            <?php while ($row = $areaResult->fetch_assoc()) { ?>
-                                <option value="<?php echo $row['area']; ?>"><?php echo strtoupper($row['area']); ?></option>
-                            <?php } ?>
-                        </select>
-
                         <form method="GET" class="mb-3">
                             <label class="form-label">Remarks</label>
                             <select name="remarks" class="form-control" onchange="this.form.submit()">
@@ -482,16 +467,6 @@ include 'navbar.php';
                                 <option value="NO" <?= isset($_GET['remarks']) && $_GET['remarks'] === 'NO' ? 'selected' : '' ?>>NO</option>
                             </select>
                         </form>
-
-                        <label class="form-label">Pension Type</label>
-                        <select id="pensionFilter" name="pension_type" class="form-control mb-2" onchange="this.form.submit()">
-                            <option value="">Select Pension Type</option>
-                            <?php while ($row = $pensionResult->fetch_assoc()) { ?>
-                            <option value="<?= $row['pension'] ?>" <?= (isset($_GET['pension_type']) && $_GET['pension_type']===$row['pension'])?'selected':''?>>
-                                <?= strtoupper($row['pension']) ?>
-                            </option>
-                            <?php } ?>
-                        </select>
 
 
 
@@ -597,8 +572,7 @@ include 'navbar.php';
                                     <a href="update.php?id=<?= $row['id']; ?>" class="icon-btn btn-edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <a href="?delete_id=<?= htmlspecialchars($row['id']); ?>" class="icon-btn btn-delete"><i class="fas fa-trash"></i></a>
-
+                                    <a href="?delete_id=<?= htmlspecialchars($row['id']); ?>" class="icon-btn btn-delete" onclick="return confirmDelete();"><i class="fas fa-trash"></i></a>
                                 </td>
 
                                 <td><?= htmlspecialchars($row['last_name']); ?></td>
@@ -626,7 +600,7 @@ include 'navbar.php';
                                 <td><?= htmlspecialchars($row['other_govt_id']); ?></td>
                                 <td><?= htmlspecialchars($row['travel']); ?></td>
                                 <td><?= htmlspecialchars($row['service']); ?></td>
-                                <td class="pension"><?= htmlspecialchars($row['pension']); ?></td>
+                                <td><?= htmlspecialchars($row['pension']); ?></td>
                                 <td><?= htmlspecialchars($row['spouse_name']); ?></td>
                                 <td><?= htmlspecialchars($row['fspouse']); ?></td>
                                 <td><?= htmlspecialchars($row['mspouse']); ?></td>
@@ -807,72 +781,58 @@ if (isset($_POST["import"])) {
 <script>
 
 
-$(document).ready(function() {
-  function filterTable() {
-    let searchText        = $('#search').val().toLowerCase();
-    let selectedBarangay  = $('#barangayFilter').val().toLowerCase();
-    let selectedSource    = $('#sourceFilter').val().toLowerCase();
-    let selectedProblem   = $('#problemFilter').val().toLowerCase();
-    let selectedIncome    = $('#incomeFilter').val().toLowerCase();
-    let selectedHearing   = $('#hearingFilter').val().toLowerCase();
-    let selectedDental    = $('#dentalFilter').val().toLowerCase();
-    let selectedOptical   = $('#opticalFilter').val().toLowerCase();
-    let selectedSocial    = $('#socialFilter').val().toLowerCase();
-    let selectedArea      = $('#areaFilter').val().toLowerCase();
-    // ← Fix here: add pension filter
-    let selectedPension   = $('#pensionFilter').val().toLowerCase(); 
+$(document).ready(function() { 
+    function filterTable() {
+        let searchText = $('#search').val().toLowerCase();
+        let selectedBarangay = $('#barangayFilter').val().toLowerCase();
+        let selectedSource = $('#sourceFilter').val().toLowerCase();
+        let selectedProblem = $('#problemFilter').val().toLowerCase();
+        let selectedIncome = $('#incomeFilter').val().toLowerCase(); 
+        let selectedHearing = $('#hearingFilter').val().toLowerCase(); 
+        let selectedDental = $('#dentalFilter').val().toLowerCase(); 
+        let selectedOptical = $('#opticalFilter').val().toLowerCase();
+        let selectedSocial = $('#socialFilter').val().toLowerCase(); // Added Social Filter
+        let selectedArea = $('#areaFilter').val().toLowerCase(); // Added Area Filter
+        
+        $('#dataTable tbody tr').filter(function() {
+            let rowText = $(this).text().toLowerCase();
+            let barangay = $(this).find('.barangay').text().toLowerCase();
+            let sourceText = $(this).find('.source').text().toLowerCase();
+            let problemText = $(this).find('.problem').text().toLowerCase();
+            let incomeText = $(this).find('.income').text().toLowerCase();
+            let hearingText = $(this).find('.hearing').text().toLowerCase();
+            let dentalText = $(this).find('.dental').text().toLowerCase(); 
+            let opticalText = $(this).find('.optical').text().toLowerCase(); 
+            let socialText = $(this).find('.social').text().toLowerCase(); // Get Social Text
+            let areaText = $(this).find('.area').text().toLowerCase(); // Get Area Text
+            
+            let sourceList = sourceText.split(',').map(item => item.trim().toLowerCase());
+            let problemList = problemText.split(',').map(item => item.trim().toLowerCase());
+            let incomeList = incomeText.split(',').map(item => item.trim().toLowerCase());
+            let hearingList = hearingText.split(',').map(item => item.trim().toLowerCase());
+            let dentalList = dentalText.split(',').map(item => item.trim().toLowerCase());
+            let opticalList = opticalText.split(',').map(item => item.trim().toLowerCase());
+            let socialList = socialText.split(',').map(item => item.trim().toLowerCase());
+            let areaList = areaText.split(',').map(item => item.trim().toLowerCase());
 
-    $('#dataTable tbody tr').each(function() {
-      let rowText     = $(this).text().toLowerCase();
-      let barangay    = $(this).find('.barangay').text().toLowerCase();
-      let sourceList  = $(this).find('.source').text().toLowerCase().split(',').map(s=>s.trim());
-      let problemList = $(this).find('.problem').text().toLowerCase().split(',').map(s=>s.trim());
-      let incomeList  = $(this).find('.income').text().toLowerCase().split(',').map(s=>s.trim());
-      let hearingList = $(this).find('.hearing').text().toLowerCase().split(',').map(s=>s.trim());
-      let dentalList  = $(this).find('.dental').text().toLowerCase().split(',').map(s=>s.trim());
-      let opticalList = $(this).find('.optical').text().toLowerCase().split(',').map(s=>s.trim());
-      let socialList  = $(this).find('.social').text().toLowerCase().split(',').map(s=>s.trim());
-      let areaList    = $(this).find('.area').text().toLowerCase().split(',').map(s=>s.trim());
-      // and pension:
-      let pensionText = $(this).find('.pension').text().toLowerCase();
-      let pensionList = pensionText.split(',').map(s=>s.trim());
+            let matchSearch = rowText.includes(searchText);
+            let matchBarangay = selectedBarangay === "" || barangay === selectedBarangay;
+            let matchSource = selectedSource === "" || sourceList.includes(selectedSource);
+            let matchProblem = selectedProblem === "" || problemList.includes(selectedProblem);
+            let matchIncome = selectedIncome === "" || incomeList.includes(selectedIncome); 
+            let matchHearing = selectedHearing === "" || hearingList.includes(selectedHearing); 
+            let matchDental = selectedDental === "" || dentalList.includes(selectedDental); 
+            let matchOptical = selectedOptical === "" || opticalList.includes(selectedOptical);
+            let matchSocial = selectedSocial === "" || socialList.includes(selectedSocial); // Check Social
+            let matchArea = selectedArea === "" || areaList.includes(selectedArea); // Check Area
 
-      let matchSearch   = rowText.includes(searchText);
-      let matchBarangay = !selectedBarangay   || barangay     === selectedBarangay;
-      let matchSource   = !selectedSource     || sourceList   .includes(selectedSource);
-      let matchProblem  = !selectedProblem    || problemList  .includes(selectedProblem);
-      let matchIncome   = !selectedIncome     || incomeList   .includes(selectedIncome);
-      let matchHearing  = !selectedHearing    || hearingList  .includes(selectedHearing);
-      let matchDental   = !selectedDental     || dentalList   .includes(selectedDental);
-      let matchOptical  = !selectedOptical    || opticalList  .includes(selectedOptical);
-      let matchSocial   = !selectedSocial     || socialList   .includes(selectedSocial);
-      let matchArea     = !selectedArea       || areaList     .includes(selectedArea);
-      // and pension:
-      let matchPension  = !selectedPension    || pensionList  .includes(selectedPension);
+            $(this).toggle(matchSearch && matchBarangay && matchSource && matchProblem && matchIncome && matchHearing && matchDental && matchOptical && matchSocial && matchArea);
+        });
+    }
 
-      // include matchPension:
-      $(this).toggle(
-        matchSearch &&
-        matchBarangay &&
-        matchSource &&
-        matchProblem &&
-        matchIncome &&
-        matchHearing &&
-        matchDental &&
-        matchOptical &&
-        matchSocial &&
-        matchArea &&
-        matchPension
-      );
-    });
-  }
-
-  $('#search').on('keyup', filterTable);
-  // include pensionFilter in the listener:
-  $('#barangayFilter, #sourceFilter, #problemFilter, #incomeFilter, #hearingFilter, #dentalFilter, #opticalFilter, #socialFilter, #areaFilter, #pensionFilter')
-    .on('change', filterTable);
+    $('#search').on('keyup', filterTable);
+    $('#barangayFilter, #sourceFilter, #problemFilter, #incomeFilter, #hearingFilter, #dentalFilter, #opticalFilter, #socialFilter, #areaFilter').on('change', filterTable); // Added socialFilter & areaFilter
 });
-
 
 
 document.getElementById("resetFilters").addEventListener("click", function(event) {
@@ -888,7 +848,6 @@ document.getElementById("resetFilters").addEventListener("click", function(event
         document.getElementById("opticalFilter").value = "";
         document.getElementById("socialFilter").value = "";
         document.getElementById("areaFilter").value = "";
-        document.getElementById("pensionFilter").value = "";
     });
 
 
@@ -997,66 +956,6 @@ document.getElementById("search").addEventListener("keyup", function () {
         table.column(54).search(value).draw(); // Adjust index if needed
     });
 });
-
-// alerts.js
-
-// run when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  const params = new URLSearchParams(window.location.search);
-  const status = params.get('delete_status');
-
-  if (!status) return;
-
-  // choose icon + message
-  const config = {
-    success: {
-      icon: 'success',
-      title: 'Deleted!',
-      text: 'Record deleted successfully.',
-    },
-    error: {
-      icon: 'error',
-      title: 'Oops...',
-      text: 'Error deleting record!',
-    }
-  }[status];
-
-  if (config) {
-    Swal.fire(config).then(() => {
-      // remove flag from URL so alert doesn’t fire again on reload
-      params.delete('delete_status');
-      const cleanUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
-      history.replaceState(null, '', cleanUrl);
-    });
-  }
-});
-
-// confirm-delete.js
-
-document.addEventListener('DOMContentLoaded', () => {
-  // Select all your delete buttons
-  document.querySelectorAll('.btn-delete').forEach(link => {
-    link.addEventListener('click', function(e) {
-      e.preventDefault();              // stop the navigation
-      const deleteUrl = this.href;     // preserve the target URL
-
-      Swal.fire({
-        title: 'Are you sure?',
-        text: "This will permanently delete the record!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel',
-      }).then(result => {
-        if (result.isConfirmed) {
-          // on confirm, go to the delete URL
-          window.location.href = deleteUrl;
-        }
-      });
-    });
-  });
-});
-
 
 </script>
 
