@@ -62,7 +62,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update'])) {
     $childage = htmlspecialchars(trim($_POST['childage'] ?? ''));
     $occhild = htmlspecialchars(trim($_POST['occhild'] ?? ''));
     $working = htmlspecialchars(trim($_POST['working'] ?? ''));
-    $education = htmlspecialchars(trim($_POST['education'] ?? ''));
+    $education = htmlspecialchars(trim($_POST['education_new'] ?? ''));
     $mastery = htmlspecialchars(trim($_POST['mastery'] ?? ''));
     $household = htmlspecialchars(trim($_POST['household'] ?? ''));
     $residency = htmlspecialchars(trim($_POST['residency'] ?? ''));
@@ -85,78 +85,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update'])) {
 
     // Update the record in the database
     $query = "UPDATE senior_citizens 
-              SET last_name=?, first_name=?, middle_name=?, region=?, province=?, municipality=?, barangay=?, 
-                  address=?, birthdate=?, age=?, birthplace=?, gender=?, marital_status=?, contact_number=?, 
-                  religion=?, ethnic=?, language=?, rrn=?, service=?, osca_id=?, sss_gsis=?, tin=?, 
-                  philhealth=?, other_govt_id=?, travel=?, pension=?, spouse_name=?, fspouse=?, mspouse=?, 
-                  children=?, fchild=?, mchild=?, childage=?, occhild=?, working=?, education=?, mastery=?, 
-                  household=?, residency=?, source=?, properties=?, asset=?, income=?, problem=?, blood=?, 
-                  hearing=?, dental=?, optical=?, social=?, area=?, medicines=?, remarks=?, checkup=?, 
-                  done=?, medical=? 
+              SET education=? 
               WHERE id=?";
     $stmt = $conn->prepare($query);
-    $stmt->bind_param(
-        "sssssssssiisssssssssssssssssssssssssssssssssssssssssssi",
-        $last_name,
-        $first_name,
-        $middle_name,
-        $region,
-        $province,
-        $municipality,
-        $barangay,
-        $address,
-        $birthdate,
-        $age,
-        $birthplace,
-        $gender,
-        $marital_status,
-        $contact_number,
-        $religion,
-        $ethnic,
-        $language,
-        $rrn,
-        $service,
-        $osca_id,
-        $sss_gsis,
-        $tin,
-        $philhealth,
-        $other_govt_id,
-        $travel,
-        $pension,
-        $spouse_name,
-        $fspouse,
-        $mspouse,
-        $children,
-        $fchild,
-        $mchild,
-        $childage,
-        $occhild,
-        $working,
+    $stmt->bind_param("si",
         $education,
-        $mastery,
-        $household,
-        $residency,
-        $source,
-        $properties,
-        $asset,
-        $income,
-        $problem,
-        $blood,
-        $hearing,
-        $dental,
-        $optical,
-        $social,
-        $area,
-        $medicines,
-        $remarks,
-        $checkup,
-        $done,
-        $medical,
         $id
     );
 
     if ($stmt->execute()) {
-        echo "<script>alert('Record updated successfully!'); window.location.href='index.php';</script>";
+        echo "<script>alert('Record updated successfully!'); window.location.href='table.php';</script>";
     } else {
         echo "Error updating record.";
     }
@@ -219,14 +157,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update'])) {
 <body class="bg-light">
     <div class="container mt-4">
         <div class="form-container">
-            <form action="form.php" method="POST">
+            <form action="" method="POST">
                 <div class="section-header">Personal Information</div>
                 <div class="row g-2 mt-2">
                     <div class="col-md-4"><input type="text" name="last_name" class="form-control"
                             placeholder="Lastname" value="<?= htmlspecialchars($row['last_name']); ?>" required></div>
-                    <div class="col-md-4"><input type="text" name="last_name" class="form-control"
+                    <div class="col-md-4"><input type="text" name="first_name" class="form-control"
                             placeholder="Firstname" value="<?= htmlspecialchars($row['first_name']); ?>" required></div>
-                    <div class="col-md-4"><input type="text" name="last_name" class="form-control"
+                    <div class="col-md-4"><input type="text" name="middle_name" class="form-control"
                             placeholder="Middlename" value="<?= htmlspecialchars($row['middle_name']); ?>" required>
                     </div>
                 </div>
@@ -339,37 +277,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['update'])) {
                 </div>
 
                 <div class="col-md-4">
-                    <label for="education_text" class="form-label">Education (From Senior Citizens Table)</label>
-                    <!-- Pre-fill the textbox with the education data from the senior_citizens table -->
-                    <input type="text" name="education_text" class="form-control" placeholder="Education"
-                        value="<?= htmlspecialchars($row['education']); ?>">
-                </div>
+    <label for="education" class="form-label">Education</label>
+    <select name="education_new" class="form-control" required>
+        <option value="">Select Education Level</option>
+        <?php
+        // Fetch data from the educational table
+        $sql = "SELECT * FROM educational";
+        $result = $conn->query($sql);
 
-                <div class="col-md-4">
-                    <label for="education" class="form-label">Education (From Educational Table)</label>
-                    <select name="education" class="form-control" required>
-                        <option value="">Select Education Level</option>
-                        <?php
+        // Loop through the results and output each option in the dropdown
+        while ($edu = $result->fetch_assoc()) {
+            $selected = ($edu['educational'] == $row['education']) ? 'selected' : '';
+            echo '<option value="' . htmlspecialchars($edu['educational']) . '" ' . $selected . '>' . htmlspecialchars($edu['educational']) . '</option>';
+        }
 
-                        // Fetch data from the educational table
-                        $sql = "SELECT * FROM educational";
-                        $result = $conn->query($sql);
+        $conn->close();
+        ?>
+    </select>
+</div>
 
-                        // Loop through the results and output each option in the dropdown
-                        while ($edu = $result->fetch_assoc()) {
-                            // Check if the current education matches the selected education
-                            $selected = ($edu['educational'] == $row['education']) ? 'selected' : '';
-                            echo '<option value="' . htmlspecialchars($edu['educational']) . '" ' . $selected . '>' . htmlspecialchars($edu['educational']) . '</option>';
-                        }
-
-                        // Close the database connection
-                        $conn->close();
-                        ?>
-                    </select>
-                </div>
 
                 <div class="text-center mt-4">
-                    <button type="submit" class="btn btn-primary w-100"
+                    <button type="submit" name="update" class="btn btn-primary w-100"
                         style="background-color:rgb(81, 0, 255); color: white; font-weight: bold; padding: 10px; font-size: 16px; border-radius: 5px; transition: background-color 0.3s ease;">
                         SUBMIT
                     </button>
